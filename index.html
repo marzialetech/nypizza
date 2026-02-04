@@ -356,7 +356,8 @@
         .order-phone { margin-top: 16px; font-size: 15px; color: #666; }
         @media (max-width: 768px) {
             .order-layout { flex-direction: column; }
-            .order-cart { flex: 0 0 auto; }
+            .order-menu { order: 2; }
+            .order-cart { order: 1; flex: 0 0 auto; }
         }
 
         /* Mobile: vertical scroll only, no horizontal scroll */
@@ -854,12 +855,16 @@
                 btn.disabled = true;
             } else {
                 var minOk = !isDelivery || sub >= DELIVERY_MIN;
-                el.innerHTML = cart.map(function(c) {
+                var cartHtml = cart.map(function(c) {
                     return '<div class="cart-item" data-id="' + c.id + '">' +
                         '<span><span class="cart-item-qty">' + c.qty + '</span> × ' + escapeHtml(c.name) + '</span>' +
                         '<span>$' + (c.price * c.qty).toFixed(2) + ' <button type="button" class="cart-item-rm" aria-label="Remove">×</button></span>' +
                         '</div>';
                 }).join('');
+                if (isDelivery && minOk) {
+                    cartHtml += '<div class="cart-item cart-item-delivery"><span>Delivery fee</span><span>$' + DELIVERY_FEE.toFixed(2) + '</span></div>';
+                }
+                el.innerHTML = cartHtml;
                 var total = getTotal();
                 totalEl.innerHTML = (isDelivery && sub < DELIVERY_MIN)
                     ? '<span style="color:#c41e3a;">$25 minimum for delivery. Current: $' + sub.toFixed(2) + '</span>'
