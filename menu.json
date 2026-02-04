@@ -1,4 +1,5 @@
 {
+  "popularItemIds": ["cheese-lg", "meatlovers-lg", "garlic-bread-cheese", "mozzarella-sticks-6", "pepperoni-roll"],
   "categories": [
     {
       "id": "appetizers",
@@ -31,6 +32,15 @@
         { "id": "antipasto-salad", "name": "Antipasto Salad", "price": 12.95 },
         { "id": "chefs-salad", "name": "Chef's Salad", "price": 13.50 },
         { "id": "crispy-chicken-salad", "name": "Crispy Chicken Salad", "price": 16.95 }
+      ]
+    },
+    {
+      "id": "wings",
+      "name": "Chicken Wings",
+      "items": [
+        { "id": "wings-10", "name": "Chicken Wings (10)", "price": 14.99 },
+        { "id": "wings-20", "name": "Chicken Wings (20)", "price": 27.99 },
+        { "id": "wings-50", "name": "Chicken Wings (50)", "price": 64.99 }
       ]
     },
     {

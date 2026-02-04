@@ -337,6 +337,7 @@
         .order-type label { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; margin-right: 16px; }
         .order-type input { accent-color: #2d5c2e; }
         .order-cat { margin-bottom: 20px; }
+        .order-cat-popular { background: rgba(45,92,46,0.08); border-radius: 8px; padding: 12px 16px; margin-bottom: 24px; }
         .order-cat h5 { margin: 0 0 8px 0; color: #c41e3a; font-size: 1.1em; font-style: italic; }
         .order-item { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 6px 0; border-bottom: 1px solid #e8dfd0; }
         .order-item:last-child { border-bottom: none; }
@@ -902,18 +903,37 @@
         function renderMenu() {
             var container = document.getElementById('orderMenu');
             if (!container || !menuData) return;
-            container.innerHTML = menuData.categories.map(function(cat) {
-                return '<div class="order-cat">' +
-                    '<h5>' + escapeHtml(cat.name) + '</h5>' +
-                    cat.items.map(function(item) {
-                        return '<div class="order-item">' +
-                            '<span class="order-item-name">' + escapeHtml(item.name) + '</span>' +
-                            '<span class="order-item-price">$' + item.price.toFixed(2) + '</span>' +
-                            '<button type="button" class="order-item-add" data-id="' + item.id + '" data-name="' + escapeHtml(item.name) + '" data-price="' + item.price + '">Add</button>' +
-                            '</div>';
-                    }).join('') +
+            var catById = {};
+            menuData.categories.forEach(function(c) { catById[c.id] = c; });
+            var itemById = {};
+            menuData.categories.forEach(function(c) {
+                c.items.forEach(function(i) { itemById[i.id] = i; });
+            });
+            var ORDER_CAT_IDS = ['pizza', 'wings', 'appetizers', 'salads', 'subs', 'tunnels', 'pockets', 'dinners', 'desserts'];
+            var orderedCats = ORDER_CAT_IDS.map(function(id) { return catById[id]; }).filter(Boolean);
+            function itemHtml(item) {
+                return '<div class="order-item">' +
+                    '<span class="order-item-name">' + escapeHtml(item.name) + '</span>' +
+                    '<span class="order-item-price">$' + item.price.toFixed(2) + '</span>' +
+                    '<button type="button" class="order-item-add" data-id="' + item.id + '" data-name="' + escapeHtml(item.name) + '" data-price="' + item.price + '">Add</button>' +
                     '</div>';
-            }).join('');
+            }
+            var html = '';
+            var popularIds = menuData.popularItemIds || [];
+            var popularItems = popularIds.map(function(id) { return itemById[id]; }).filter(Boolean);
+            if (popularItems.length) {
+                html += '<div class="order-cat order-cat-popular">' +
+                    '<h5>Popular items</h5>' +
+                    popularItems.map(itemHtml).join('') +
+                    '</div>';
+            }
+            orderedCats.forEach(function(cat) {
+                html += '<div class="order-cat">' +
+                    '<h5>' + escapeHtml(cat.name) + '</h5>' +
+                    cat.items.map(itemHtml).join('') +
+                    '</div>';
+            });
+            container.innerHTML = html;
             container.querySelectorAll('.order-item-add').forEach(function(b) {
                 b.addEventListener('click', function() {
                     addToCart({
