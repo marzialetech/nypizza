@@ -909,7 +909,7 @@
             menuData.categories.forEach(function(c) {
                 c.items.forEach(function(i) { itemById[i.id] = i; });
             });
-            var ORDER_CAT_IDS = ['pizza', 'wings', 'appetizers', 'salads', 'subs', 'tunnels', 'pockets', 'dinners', 'desserts'];
+            var ORDER_CAT_IDS = ['pizza', 'appetizers', 'salads', 'subs', 'tunnels', 'pockets', 'dinners', 'desserts'];
             var orderedCats = ORDER_CAT_IDS.map(function(id) { return catById[id]; }).filter(Boolean);
             function itemHtml(item) {
                 return '<div class="order-item">' +

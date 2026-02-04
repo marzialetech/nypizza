@@ -35,15 +35,6 @@
       ]
     },
     {
-      "id": "wings",
-      "name": "Chicken Wings",
-      "items": [
-        { "id": "wings-10", "name": "Chicken Wings (10)", "price": 14.99 },
-        { "id": "wings-20", "name": "Chicken Wings (20)", "price": 27.99 },
-        { "id": "wings-50", "name": "Chicken Wings (50)", "price": 64.99 }
-      ]
-    },
-    {
       "id": "subs",
       "name": "Lunch Subs",
       "items": [
