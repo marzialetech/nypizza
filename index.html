@@ -205,11 +205,32 @@
             line-height: 1.4;
         }
         .menu-pane { padding-top: 0; }
+        /* Desktop: single row spanning full width */
         .menu-nav {
             display: flex;
             flex-wrap: nowrap;
             flex-shrink: 0;
             margin: 0 -32px 0 -32px;
+        }
+        @media (max-width: 900px) {
+            /* 3 rows of 3 - no intermediate state where buttons hide */
+            .menu-nav {
+                display: grid !important;
+                grid-template-columns: repeat(3, 1fr);
+                grid-template-rows: repeat(3, auto);
+                width: 100vw;
+                max-width: 100vw;
+                margin-left: calc(50% - 50vw);
+            }
+            .menu-nav-btn {
+                border-right: none !important;
+                border-bottom: none !important;
+                padding: 0.35rem 0.4rem;
+                font-size: 12px;
+            }
+            .menu-nav-btn:last-child { border-right: 1px solid #c4a574 !important; }
+            .menu-nav-btn:nth-child(3n) { border-right: 1px solid #c4a574 !important; }
+            .menu-nav-btn:nth-child(n+7) { border-bottom: 1px solid #c4a574 !important; }
         }
         .menu-nav-btn {
             flex: 1 1 0;
@@ -326,22 +347,6 @@
             .about-right { flex-direction: column; }
             .about-right .about-block { flex: 1 1 auto; }
             .about-footer { margin-top: 0; }
-            .menu-nav {
-                flex-wrap: wrap;
-                margin: 0 -16px;
-                gap: 0;
-            }
-            .menu-nav-btn {
-                flex: 1 1 33.333%;
-                min-width: 0;
-                border: 1px solid #c4a574;
-                border-right: none;
-                border-bottom: none;
-                padding: 0.4rem 0.5rem;
-                font-size: 13px;
-            }
-            .menu-nav-btn:nth-child(3n) { border-right: 1px solid #c4a574; }
-            .menu-nav-btn:nth-child(n+7) { border-bottom: 1px solid #c4a574; }
             .menu-pane.active { min-height: min-content; overflow: visible; }
             .menu-sub { overflow: visible; }
             .menu-sub-content { overflow-x: hidden; overflow-y: visible; min-height: min-content; }
