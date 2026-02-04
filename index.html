@@ -320,15 +320,44 @@
         .order-pane.active {
             display: flex;
             flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            text-align: center;
+            gap: 16px;
+            overflow: auto;
         }
         .order-pane {
-            font-size: 22px;
-            line-height: 1.8;
+            font-size: 17px;
+            line-height: 1.5;
         }
         .order-pane p { margin: 0 0 16px 0; }
+        .order-layout { display: flex; gap: 24px; flex: 1; min-height: 0; min-width: 0; }
+        .order-menu { flex: 1; min-width: 0; overflow: auto; }
+        .order-cart { flex: 0 0 320px; min-width: 0; display: flex; flex-direction: column; }
+        .order-cart-inner { background: #f8f4ed; border: 1px solid #c4a574; border-radius: 8px; padding: 16px; flex: 1; min-height: 0; overflow: auto; }
+        .order-cart h4 { margin: 0 0 12px 0; color: #c41e3a; font-size: 1.3em; font-style: italic; }
+        .order-type { margin-bottom: 16px; }
+        .order-type label { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; margin-right: 16px; }
+        .order-type input { accent-color: #2d5c2e; }
+        .order-cat { margin-bottom: 20px; }
+        .order-cat h5 { margin: 0 0 8px 0; color: #c41e3a; font-size: 1.1em; font-style: italic; }
+        .order-item { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 6px 0; border-bottom: 1px solid #e8dfd0; }
+        .order-item:last-child { border-bottom: none; }
+        .order-item-name { flex: 1; min-width: 0; }
+        .order-item-price { color: #333; white-space: nowrap; }
+        .order-item-add { background: #2d5c2e; color: #fff; border: none; padding: 4px 12px; border-radius: 4px; cursor: pointer; font-family: inherit; font-size: 14px; }
+        .order-item-add:hover { background: #3d6c3e; }
+        .cart-item { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px solid #e8dfd0; font-size: 15px; }
+        .cart-item-qty { min-width: 2ch; }
+        .cart-item-rm { background: transparent; border: none; color: #c41e3a; cursor: pointer; font-size: 18px; padding: 0 4px; line-height: 1; }
+        .cart-item-rm:hover { text-decoration: underline; }
+        .cart-total { margin-top: 12px; padding-top: 12px; border-top: 2px solid #c4a574; font-weight: 700; font-size: 1.1em; }
+        .order-checkout { margin-top: 16px; }
+        .order-checkout-btn { background: #2d5c2e; color: #fff; border: none; padding: 12px 24px; border-radius: 8px; cursor: pointer; font-family: inherit; font-size: 18px; font-weight: 700; width: 100%; }
+        .order-checkout-btn:hover { background: #3d6c3e; }
+        .order-checkout-btn:disabled { background: #999; cursor: not-allowed; }
+        .order-phone { margin-top: 16px; font-size: 15px; color: #666; }
+        @media (max-width: 768px) {
+            .order-layout { flex-direction: column; }
+            .order-cart { flex: 0 0 auto; }
+        }
 
         /* Mobile: vertical scroll only, no horizontal scroll */
         @media (max-width: 768px) {
@@ -657,10 +686,24 @@
         </div>
 
         <div class="content-pane order-pane" id="orderPane">
-            <p>Call to order for pickup or delivery.</p>
-            <p>7580 South State St. · Lowville, NY</p>
-            <p><a href="tel:+13153764420">315-376-4420</a> · <a href="tel:+13153764427">315-376-4427</a></p>
-            <p><em>In-town delivery: $5 charge, $25 minimum. 11am–2pm & 5pm–8pm.</em></p>
+            <div class="order-type">
+                <label><input type="radio" name="orderType" value="pickup" checked> Pickup</label>
+                <label><input type="radio" name="orderType" value="delivery"> Delivery (+$5, $25 min)</label>
+            </div>
+            <div class="order-layout">
+                <div class="order-menu" id="orderMenu"></div>
+                <div class="order-cart">
+                    <div class="order-cart-inner">
+                        <h4>Your Order</h4>
+                        <div id="orderCartItems"></div>
+                        <div class="cart-total" id="orderCartTotal">$0.00</div>
+                        <div class="order-checkout">
+                            <button class="order-checkout-btn" id="orderCheckoutBtn" disabled>Checkout with Stripe</button>
+                        </div>
+                        <p class="order-phone">Or call <a href="tel:+13153764420">315-376-4420</a> · <a href="tel:+13153764427">315-376-4427</a></p>
+                    </div>
+                </div>
+            </div>
         </div>
     </main>
 
@@ -758,6 +801,182 @@
     aboutBtn.addEventListener('click', function() { showPane('about', true); });
     menuBtn.addEventListener('click', function() { showPane('menu-pizza', true); });
     orderBtn.addEventListener('click', function() { showPane('order', true); });
+
+    (function orderModule() {
+        var cart = [];
+        var menuData = null;
+        var DELIVERY_FEE = 5;
+        var DELIVERY_MIN = 25;
+        var API_BASE = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+            ? 'http://localhost:8787'
+            : 'https://nypizza-api.jm-306.workers.dev';
+
+        function getOrderType() {
+            return document.querySelector('input[name="orderType"]:checked')?.value || 'pickup';
+        }
+
+        function addToCart(item, qty) {
+            qty = qty || 1;
+            var existing = cart.find(function(c) { return c.id === item.id; });
+            if (existing) existing.qty += qty;
+            else cart.push({ id: item.id, name: item.name, price: item.price, qty: qty });
+            renderCart();
+        }
+
+        function removeFromCart(id) {
+            cart = cart.filter(function(c) { return c.id !== id; });
+            renderCart();
+        }
+
+        function getSubtotal() {
+            return cart.reduce(function(sum, c) { return sum + c.price * c.qty; }, 0);
+        }
+
+        function getTotal() {
+            var sub = getSubtotal();
+            if (getOrderType() === 'delivery') {
+                if (sub < DELIVERY_MIN) return sub;
+                return sub + DELIVERY_FEE;
+            }
+            return sub;
+        }
+
+        function renderCart() {
+            var el = document.getElementById('orderCartItems');
+            var totalEl = document.getElementById('orderCartTotal');
+            var btn = document.getElementById('orderCheckoutBtn');
+            if (!el || !totalEl || !btn) return;
+            var sub = getSubtotal();
+            var isDelivery = getOrderType() === 'delivery';
+            if (cart.length === 0) {
+                el.innerHTML = '<p style="color:#666;margin:0;">Cart is empty. Add items from the menu.</p>';
+                totalEl.textContent = '$0.00';
+                btn.disabled = true;
+            } else {
+                var minOk = !isDelivery || sub >= DELIVERY_MIN;
+                el.innerHTML = cart.map(function(c) {
+                    return '<div class="cart-item" data-id="' + c.id + '">' +
+                        '<span><span class="cart-item-qty">' + c.qty + '</span> × ' + escapeHtml(c.name) + '</span>' +
+                        '<span>$' + (c.price * c.qty).toFixed(2) + ' <button type="button" class="cart-item-rm" aria-label="Remove">×</button></span>' +
+                        '</div>';
+                }).join('');
+                var total = getTotal();
+                totalEl.innerHTML = (isDelivery && sub < DELIVERY_MIN)
+                    ? '<span style="color:#c41e3a;">$25 minimum for delivery. Current: $' + sub.toFixed(2) + '</span>'
+                    : (isDelivery ? 'Subtotal: $' + sub.toFixed(2) + '<br>Delivery: $' + DELIVERY_FEE.toFixed(2) + '<br>Total: $' + total.toFixed(2) : 'Total: $' + total.toFixed(2));
+                btn.disabled = !minOk;
+            }
+            el.querySelectorAll('.cart-item-rm').forEach(function(b) {
+                b.addEventListener('click', function() {
+                    var row = b.closest('.cart-item');
+                    if (row) removeFromCart(row.getAttribute('data-id'));
+                });
+            });
+        }
+
+        function escapeHtml(s) {
+            var d = document.createElement('div');
+            d.textContent = s;
+            return d.innerHTML;
+        }
+
+        function renderMenu() {
+            var container = document.getElementById('orderMenu');
+            if (!container || !menuData) return;
+            container.innerHTML = menuData.categories.map(function(cat) {
+                return '<div class="order-cat">' +
+                    '<h5>' + escapeHtml(cat.name) + '</h5>' +
+                    cat.items.map(function(item) {
+                        return '<div class="order-item">' +
+                            '<span class="order-item-name">' + escapeHtml(item.name) + '</span>' +
+                            '<span class="order-item-price">$' + item.price.toFixed(2) + '</span>' +
+                            '<button type="button" class="order-item-add" data-id="' + item.id + '" data-name="' + escapeHtml(item.name) + '" data-price="' + item.price + '">Add</button>' +
+                            '</div>';
+                    }).join('') +
+                    '</div>';
+            }).join('');
+            container.querySelectorAll('.order-item-add').forEach(function(b) {
+                b.addEventListener('click', function() {
+                    addToCart({
+                        id: b.getAttribute('data-id'),
+                        name: b.getAttribute('data-name'),
+                        price: parseFloat(b.getAttribute('data-price'))
+                    });
+                });
+            });
+        }
+
+        function doCheckout() {
+            if (cart.length === 0) return;
+            var isDelivery = getOrderType() === 'delivery';
+            var sub = getSubtotal();
+            if (isDelivery && sub < DELIVERY_MIN) return;
+            var lineItems = cart.map(function(c) {
+                return { id: c.id, name: c.name, priceCents: Math.round(c.price * 100), quantity: c.qty };
+            });
+            if (isDelivery) {
+                lineItems.push({ id: 'delivery', name: 'Delivery fee', priceCents: DELIVERY_FEE * 100, quantity: 1 });
+            }
+            var btn = document.getElementById('orderCheckoutBtn');
+            if (btn) btn.disabled = true;
+            var origin = window.location.origin || (window.location.protocol + '//' + window.location.host);
+            fetch(API_BASE + '/api/create-checkout-session', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    lineItems: lineItems,
+                    successUrl: origin + '/?success=1#order',
+                    cancelUrl: origin + '/#order'
+                })
+            }).then(function(r) {
+                if (!r.ok) throw new Error('Checkout failed');
+                return r.json();
+            }).then(function(data) {
+                if (data.url) window.location.href = data.url;
+                else throw new Error('No checkout URL');
+            }).catch(function(err) {
+                console.error(err);
+                alert('Checkout failed. Please call to order: 315-376-4420');
+                if (btn) btn.disabled = false;
+            });
+        }
+
+        document.querySelectorAll('input[name="orderType"]').forEach(function(r) {
+            r.addEventListener('change', renderCart);
+        });
+        document.getElementById('orderCheckoutBtn')?.addEventListener('click', doCheckout);
+
+        function checkSuccessParam() {
+            var params = new URLSearchParams(window.location.search);
+            if (params.get('success') === '1') {
+                cart = [];
+                renderCart();
+                history.replaceState(null, '', window.location.pathname + window.location.hash);
+                var msg = document.createElement('p');
+                msg.style.cssText = 'background:#2d5c2e;color:#fff;padding:12px;border-radius:8px;margin-bottom:16px;';
+                msg.textContent = 'Thank you! Your order has been received. We will prepare it for pickup/delivery.';
+                var orderPane = document.getElementById('orderPane');
+                if (orderPane && !orderPane.querySelector('.order-success-msg')) {
+                    msg.className = 'order-success-msg';
+                    orderPane.insertBefore(msg, orderPane.firstChild);
+                    setTimeout(function() { msg.remove(); }, 8000);
+                }
+            }
+        }
+        window.addEventListener('hashchange', function() {
+            if (window.location.hash === '#order') checkSuccessParam();
+        });
+        if (window.location.hash === '#order') checkSuccessParam();
+
+        fetch('menu.json').then(function(r) { return r.json(); }).then(function(data) {
+            menuData = data;
+            renderMenu();
+        }).catch(function() {
+            document.getElementById('orderMenu').innerHTML = '<p style="color:#c41e3a;">Could not load menu. Please refresh.</p>';
+        });
+
+        window.orderRenderCart = renderCart;
+    })();
 
     document.querySelectorAll('.menu-nav-btn').forEach(function(btn) {
         btn.addEventListener('click', function() {
